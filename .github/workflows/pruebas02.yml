@@ -1,0 +1,77 @@
+name: : Laravel Tests02
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  laravel-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aluvid_pi
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v3
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, pdo, pdo_mysql
+        ini-values: |
+          memory_limit=-1
+        coverage: none
+
+    - name: Install dependencies
+      run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+    - name: Set up .env
+      run: cp .env.example .env
+
+    - name: Configure .env database variables
+      run: |
+        php artisan key:generate
+        sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=mysql/' .env
+        sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
+        sed -i 's/DB_PORT=3306/DB_PORT=3306/' .env
+        sed -i 's/DB_DATABASE=laravel/DB_DATABASE=aluvid_pi/' .env
+        sed -i 's/DB_USERNAME=root/DB_USERNAME=root/' .env
+        sed -i 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
+
+    - name: Run migrations
+      run: php artisan migrate --force
+
+    - name: Run tests
+      run: php artisan test
+
+    # Empaquetado de artefactos
+    - name: Empaquetar el artefacto
+      run: |
+        zip -r app.zip . -x "*.git*" "*.github*"
+
+    # Subir artefacto
+    - name: Subir artefacto
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-artifact
+        path: app.zip
+
+    # Construcción de la imagen Docker
+    - name: Construir la imagen Docker
+      run: |
+        docker build -t my-app .
+
+    # Despliegue con Docker
+    - name: Ejecutar contenedor Docker
+      run: |
+        docker run -d -p 8080:80 my-app
