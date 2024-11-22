@@ -54,6 +54,16 @@ jobs:
     - name: Run tests
       run: php artisan test
 
+    - name: Create ZIP of project
+      run: zip -r my_laravel_project.zip . -x "vendor/*" "node_modules/*"
+    
+    - name: Almacenamiento de artefactos
+      uses: actions/upload-artifact@v3
+      with:
+        name: my-laravel-artifact
+        path: my_laravel_project.zip
+
+
     - name: Generate Dockerfile
       run: |
         echo "FROM php:8.2-fpm" > Dockerfile
