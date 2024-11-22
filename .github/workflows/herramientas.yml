@@ -76,12 +76,12 @@ jobs:
 
     - name: Deploy with Docker
       env:
-        DOCKER_HOST: ${{ secrets.DOCKER_HOST }}
         DOCKER_USER: ${{ secrets.DOCKER_USER }}
         DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       run: |
-        echo "$DOCKER_PASSWORD" | docker login $DOCKER_HOST --username $DOCKER_USER --password-stdin
-        docker tag my-laravel-app:latest $DOCKER_HOST/my-laravel-app:latest
-        docker push $DOCKER_HOST/my-laravel-app:latest
-        docker run -d --name laravel-app -p 80:80 $DOCKER_HOST/my-laravel-app:latest
+        echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USER" --password-stdin
+        docker tag my-laravel-app:latest my-docker-repo/my-laravel-app:latest
+        docker push my-docker-repo/my-laravel-app:latest
+        docker run -d --name laravel-app -p 80:80 my-docker-repo/my-laravel-app:latest
+
 
