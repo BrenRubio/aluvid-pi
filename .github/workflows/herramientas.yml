@@ -74,14 +74,8 @@ jobs:
     - name: Build Docker image
       run: docker build -t my-laravel-app:latest .
 
-    - name: Deploy with Docker
-      env:
-        DOCKER_USER: ${{ secrets.DOCKER_USER }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      run: |
-        echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USER" --password-stdin
-        docker tag my-laravel-app:latest my-docker-repo/my-laravel-app:latest
-        docker push my-docker-repo/my-laravel-app:latest
-        docker run -d --name laravel-app -p 80:80 my-docker-repo/my-laravel-app:latest
+    - name: Run Docker container
+      run:
+        docker run -d -p 8081:8080 --name test-container my-app
 
 
