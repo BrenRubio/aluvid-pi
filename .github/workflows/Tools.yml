@@ -1,4 +1,4 @@
-name: Laravel Tests2 # Este es el nombre del job principal
+name: Laravel Tests2
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.2' # Cambia a la versión de PHP que estés utilizando
+        php-version: '8.2'
         extensions: mbstring, pdo, pdo_mysql
         ini-values: |
           memory_limit=-1
@@ -41,12 +41,9 @@ jobs:
     - name: Configure .env database variables
       run: |
         php artisan key:generate
-        sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=mysql/' .env
-        sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
-        sed -i 's/DB_PORT=3306/DB_PORT=3306/' .env
-        sed -i 's/DB_DATABASE=laravel/DB_DATABASE=aluvid_pi/' .env
-        sed -i 's/DB_USERNAME=root/DB_USERNAME=root/' .env
-        sed -i 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
+        sed -i 's/DB_DATABASE=laravel/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
+        sed -i 's/DB_USERNAME=root/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
+        sed -i 's/DB_PASSWORD=/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
 
     - name: Run migrations
       run: php artisan migrate --force
@@ -54,30 +51,18 @@ jobs:
     - name: Run tests
       run: php artisan test
 
-    - name: Generar un artefacto
-      run: zip -r application.zip . -x "vendor/*" "node_modules/*"
-
-    - name: Almacenar artegacto
-      uses: actions/upload-artifact@v3
-      with:
-        name: application-artifact
-        path: application.zip
-    
-    - name: deploy locally with docker
-      run: 
-        docker  build -t my-app
-        docker run -d -p 8080:8080 my-app
-
     - name: Build Docker image
       run: docker build -t my-app .
 
     - name: Run Docker container
-      run: 
-        docker run -d -p 8081:8080 --name test-container
+      run: docker run -d -p 8080:8080 --name my-app-container my-app
 
-    - name: Set up SHH
-      run:
+    - name: Set up SSH
+      run: |
         mkdir -p ~/.ssh
-        echo "${{secrets.SHH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H github.com >> ~/.ssh/known_hosts7
+        ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+
+    - name: Save 
+
