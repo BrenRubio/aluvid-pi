@@ -54,7 +54,7 @@ jobs:
     - name: Run tests
       run: php artisan test
 
-    - name: Create ZIP of project
+    - name: Empaquetado de artefactos
       run: zip -r my_laravel_project.zip . -x "vendor/*" "node_modules/*"
     
     - name: Almacenamiento de artefactos
@@ -64,7 +64,7 @@ jobs:
         path: my_laravel_project.zip
 
 
-    - name: Generate Dockerfile
+    - name: Despliegue automatizadoo
       run: |
         echo "FROM php:8.2-fpm" > Dockerfile
         echo "RUN apt-get update && apt-get install -y \\" >> Dockerfile
@@ -81,10 +81,15 @@ jobs:
         echo "EXPOSE 80" >> Dockerfile
         echo 'CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]' >> Dockerfile
 
-    - name: Build Docker image
+    - name: Despliegue automatizado
+      run: |
+        docker build -t my-laravel-app
+        docker run -d -p 8081:8080 my-laravel-app
+
+    - name: Construcción de una imagen Docker
       run: docker build -t my-laravel-app .
 
-    - name: Run Docker container
+    - name: Despliegue con Docker
       run:
         docker run -d -p 8081:8080 --name test-container my-laravel-app
 
