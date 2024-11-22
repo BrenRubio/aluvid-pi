@@ -20,11 +20,9 @@ jobs:
         options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=3
 
     steps:
-    # 1. Verificar el código fuente
     - name: Checkout the code
       uses: actions/checkout@v3
 
-    # 2. Configurar PHP
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
@@ -34,11 +32,9 @@ jobs:
           memory_limit=-1
         coverage: none
 
-    # 3. Instalar dependencias
     - name: Install dependencies
       run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
 
-    # 4. Configurar el archivo .env
     - name: Set up .env
       run: cp .env.example .env
 
@@ -52,30 +48,32 @@ jobs:
         sed -i 's/DB_USERNAME=root/DB_USERNAME=root/' .env
         sed -i 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
 
-    # 5. Migrar base de datos
     - name: Run migrations
       run: php artisan migrate --force
 
-    # 6. Ejecutar pruebas
     - name: Run tests
       run: php artisan test
 
-    # 7. Generar archivo ZIP
-    - name: Create ZIP artifact
-      run: zip -r application.zip ./
+    - name: Generate Dockerfile
+      run: |
+        echo "FROM php:8.2-fpm" > Dockerfile
+        echo "RUN apt-get update && apt-get install -y \\" >> Dockerfile
+        echo "    libzip-dev \\" >> Dockerfile
+        echo "    zip \\" >> Dockerfile
+        echo "    unzip \\" >> Dockerfile
+        echo "    git \\" >> Dockerfile
+        echo "    && docker-php-ext-install pdo_mysql zip" >> Dockerfile
+        echo "COPY --from=composer:latest /usr/bin/composer /usr/bin/composer" >> Dockerfile
+        echo "WORKDIR /var/www/html" >> Dockerfile
+        echo "COPY . ." >> Dockerfile
+        echo "RUN composer install --no-dev --no-scripts --optimize-autoloader" >> Dockerfile
+        echo "RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache" >> Dockerfile
+        echo "EXPOSE 80" >> Dockerfile
+        echo 'CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]' >> Dockerfile
 
-    # 8. Almacenar archivo ZIP como artefacto del workflow
-    - name: Upload ZIP artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: application-artifact
-        path: application.zip
-
-    # 9. Construcción de la imagen Docker
     - name: Build Docker image
       run: docker build -t my-laravel-app:latest .
 
-    # 10. Despliegue con Docker
     - name: Deploy with Docker
       env:
         DOCKER_HOST: ${{ secrets.DOCKER_HOST }}
@@ -86,3 +84,4 @@ jobs:
         docker tag my-laravel-app:latest $DOCKER_HOST/my-laravel-app:latest
         docker push $DOCKER_HOST/my-laravel-app:latest
         docker run -d --name laravel-app -p 80:80 $DOCKER_HOST/my-laravel-app:latest
+
