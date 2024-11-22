@@ -1,0 +1,88 @@
+name: Herramientas de Liberación y Despliegue Continuo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  laravel-pipeline:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aluvid_pi
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - name: Checkout the code
+      uses: actions/checkout@v3
+
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, pdo, pdo_mysql
+        ini-values: |
+          memory_limit=-1
+        coverage: none
+
+    - name: Install dependencies
+      run: composer install --no-progress --no-suggest --prefer-dist --optimize-autoloader
+
+    - name: Set up .env
+      run: cp .env.example .env
+
+    - name: Configure .env database variables
+      run: |
+        php artisan key:generate
+        sed -i 's/DB_CONNECTION=mysql/DB_CONNECTION=mysql/' .env
+        sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
+        sed -i 's/DB_PORT=3306/DB_PORT=3306/' .env
+        sed -i 's/DB_DATABASE=laravel/DB_DATABASE=aluvid_pi/' .env
+        sed -i 's/DB_USERNAME=root/DB_USERNAME=root/' .env
+        sed -i 's/DB_PASSWORD=/DB_PASSWORD=root/' .env
+    - name: Run migrations
+      run: php artisan migrate --force
+
+    - name: Run tests
+      run: php artisan test
+
+    - name:  Empaquetado de artefactos
+      run: zip -r my_laravel_project.zip . -x "vendor/*" "node_modules/*"
+    
+    - name:  Almacenamiento de artefactos
+      uses: actions/upload-artifact@v3
+      with:
+        name: my-laravel-artifact
+        path: my_laravel_project.zip
+
+
+    - name: Despliegue automatizado
+      run: |
+        echo "FROM php:8.2-fpm" > Dockerfile
+        echo "RUN apt-get update && apt-get install -y \\" >> Dockerfile
+        echo "    libzip-dev \\" >> Dockerfile
+        echo "    zip \\" >> Dockerfile
+        echo "    unzip \\" >> Dockerfile
+        echo "    git \\" >> Dockerfile
+        echo "    && docker-php-ext-install pdo_mysql zip" >> Dockerfile
+        echo "COPY --from=composer:latest /usr/bin/composer /usr/bin/composer" >> Dockerfile
+        echo "WORKDIR /var/www/html" >> Dockerfile
+        echo "COPY . ." >> Dockerfile
+        echo "RUN composer install --no-dev --no-scripts --optimize-autoloader" >> Dockerfile
+        echo "RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache" >> Dockerfile
+        echo "EXPOSE 80" >> Dockerfile
+        echo 'CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=80"]' >> Dockerfile
+        
+    - name:  Construcción de una imagen Docker
+      run: docker build -t my-laravel-app .
+
+    - name: Despliegue con Docker
+      run:
+        docker run -d -p 8081:8080 --name test-container my-laravel-app
