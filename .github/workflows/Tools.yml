@@ -55,6 +55,29 @@ jobs:
       run: php artisan test
 
     - name: Generar un artefacto
-      run: zip -r project.zip . -x "vendor/*" "node_modules/*"
-      
+      run: zip -r application.zip . -x "vendor/*" "node_modules/*"
 
+    - name: Almacenar artegacto
+      uses: actions/upload-artifact@v3
+      with:
+        name: application-artifact
+        path: application.zip
+    
+    - name: deploy locally with docker
+      run: 
+        docker  build -t my-app
+        docker run -d -p 8080:8080 my-app
+
+    - name: Build Docker image
+      run: docker build -t my-app .
+
+    - name: Run Docker container
+      run: 
+        docker run -d -p 8081:8080 --name test-container
+
+    - name: Set up SHH
+      run:
+        mkdir -p ~/.ssh
+        echo "${{secrets.SHH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H github.com >> ~/.ssh/known_hosts7
